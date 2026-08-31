@@ -7,8 +7,10 @@ namespace WinPet.App;
 public partial class MainWindow : Window
 {
     private readonly Database _database = new();
+    private readonly EvolutionService _evolution = new();
     private ActivityMonitor? _monitor;
     private PetEngine? _engine;
+    private TrayService? _tray;
 
     public MainWindow()
     {
@@ -26,10 +28,12 @@ public partial class MainWindow : Window
         _engine.PetChanged += _ => Dispatcher.Invoke(UpdateUi);
         _monitor = new ActivityMonitor(_database);
         _monitor.ActivityChanged += OnActivityChanged;
+        _tray = new TrayService(this);
     }
 
     private async void OnActivityChanged(string process, string category, TimeSpan duration)
     {
+        ActivityText.Text = $"{category} · {process}";
         if (_engine is null || duration.TotalMinutes < 1) return;
         await _engine.ApplyActivityAsync(category, duration);
     }
@@ -40,6 +44,7 @@ public partial class MainWindow : Window
         var pet = _engine.Pet;
         PetNameText.Text = pet.Name;
         LevelText.Text = $"Level {pet.Level}  •  {pet.Experience:N0} XP";
+        PetEmoji.Text = _evolution.GetEmoji(pet);
         EnergyBar.Value = pet.Energy;
         HappinessBar.Value = pet.Happiness;
         EnergyText.Text = $"{pet.Energy}%";
@@ -49,5 +54,9 @@ public partial class MainWindow : Window
         DisciplineText.Text = $"Discipline {pet.Discipline}";
     }
 
-    private void OnClosed(object? sender, EventArgs e) => _monitor?.Dispose();
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        _monitor?.Dispose();
+        _tray?.Dispose();
+    }
 }
